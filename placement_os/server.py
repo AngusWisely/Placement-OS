@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from . import db
 from . import analyser
 from . import jobs
+from . import importer
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "static"
@@ -62,6 +63,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/applications": return self._json(db.list_applications(conn))
             if path == "/api/profile": return self._json(db.list_evidence(conn))
             if path == "/api/discovery/status": return self._json(jobs.status())
+            if path == "/api/preferences": return self._json(db.get_preferences(conn))
             if path.startswith("/api/applications/") and path.rsplit("/", 1)[-1].isdigit():
                 item = db.get_application(conn, int(path.rsplit("/", 1)[-1]))
                 return self._json(item, 200 if item else 404)
@@ -101,13 +103,108 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 return self._json({"error": str(exc)}, 400)
 
+        if path == "/api/preferences":
+            try:
+                with db.connect(DB_PATH) as conn:
+                    prefs = db.save_preferences(
+                        conn,
+                        location=str(data.get("location", "")),
+                        min_relevance=int(data.get("min_relevance", 0) or 0),
+                    )
+                return self._json(prefs)
+            except (TypeError, ValueError) as exc:
+                return self._json({"error": str(exc)}, 400)
+
         if path == "/api/discover":
             try:
-                location = str(data.get("location", "")).strip()
                 with db.connect(DB_PATH) as conn:
+                    prefs = db.get_preferences(conn)
+                    location = str(data.get("location", prefs["location"])).strip()
+                    if location != prefs["location"]:
+                        prefs = db.save_preferences(conn, location=location, min_relevance=prefs["min_relevance"])
                     results = jobs.search(db.list_evidence(conn), location=location)
-                return self._json({"results": results, "count": len(results)})
+                    visible = []
+                    new_count = 0
+                    for job in results:
+                        state = db.record_discovery(conn, job)
+                        job.update(state)
+                        if state["hidden"]:
+                            continue
+                        if int(job.get("relevance", 0)) < int(prefs["min_relevance"]):
+                            continue
+                        if state["is_new"]:
+                            new_count += 1
+                        visible.append(job)
+                return self._json({"results": visible, "count": len(visible), "new_count": new_count, "preferences": prefs})
             except jobs.DiscoveryError as exc:
+                return self._json({"error": str(exc)}, 400)
+
+        if path == "/api/discovery/hide":
+            job_key = str(data.get("job_key", "")).strip()
+            if not job_key:
+                return self._json({"error": "job_key is required"}, 400)
+            with db.connect(DB_PATH) as conn:
+                db.hide_discovery(conn, job_key)
+            return self._json({"hidden": True})
+
+        if path == "/api/discovery/save":
+            try:
+                job_key = str(data.get("job_key", "")).strip()
+                company = str(data.get("company", "")).strip() or "Unknown employer"
+                role = str(data.get("title", "")).strip()
+                if not job_key or not role:
+                    return self._json({"error": "Incomplete job data"}, 400)
+                status = str(data.get("status", "Saved"))
+                if status not in {"Saved", "Applying"}:
+                    status = "Saved"
+                next_action = "Complete application" if status == "Applying" else "Review advert and decide whether to apply"
+                with db.connect(DB_PATH) as conn:
+                    app_id = db.create_application(
+                        conn,
+                        db.Application(
+                            None,
+                            company,
+                            role,
+                            location=str(data.get("location", "")),
+                            job_url=str(data.get("url", "")),
+                            status=status,
+                            next_action=next_action,
+                            notes="Found automatically via " + str(data.get("source", "job search")),
+                        ),
+                    )
+                    description = str(data.get("description", "")).strip()
+                    if len(description) >= 40:
+                        analysis = analyser.analyse(description, db.list_evidence(conn))
+                        db.save_job_analysis(conn, app_id, description, analyser.dumps(analysis))
+                    db.mark_discovery_saved(conn, job_key, app_id)
+                    app = db.get_application(conn, app_id)
+                return self._json(app, 201)
+            except ValueError as exc:
+                return self._json({"error": str(exc)}, 400)
+
+        if path == "/api/import-url":
+            try:
+                imported = importer.fetch_job(str(data.get("url", "")))
+                with db.connect(DB_PATH) as conn:
+                    app_id = db.create_application(
+                        conn,
+                        db.Application(
+                            None,
+                            imported["company"],
+                            imported["role"],
+                            job_url=imported["job_url"],
+                            status="Saved",
+                            next_action="Review imported advert and decide whether to apply",
+                            notes=imported.get("page_description", ""),
+                        ),
+                    )
+                    analysis = analyser.analyse(imported["job_advert"], db.list_evidence(conn))
+                    db.save_job_analysis(conn, app_id, imported["job_advert"], analyser.dumps(analysis))
+                    app = db.get_application(conn, app_id)
+                return self._json(app, 201)
+            except importer.ImportError as exc:
+                return self._json({"error": str(exc)}, 400)
+            except ValueError as exc:
                 return self._json({"error": str(exc)}, 400)
 
         if path.startswith("/api/analyse/") and path.rsplit("/", 1)[-1].isdigit():

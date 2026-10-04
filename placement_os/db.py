@@ -73,6 +73,22 @@ def migrate(conn: sqlite3.Connection) -> None:
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS discovery_items (
+            job_key TEXT PRIMARY KEY,
+            title TEXT NOT NULL DEFAULT '',
+            company TEXT NOT NULL DEFAULT '',
+            url TEXT NOT NULL DEFAULT '',
+            hidden INTEGER NOT NULL DEFAULT 0,
+            saved_application_id INTEGER,
+            first_seen TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_seen TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS preferences (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
         """
     )
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(applications)")}
@@ -184,4 +200,73 @@ def save_job_analysis(conn: sqlite3.Connection, app_id: int, advert: str, analys
     )
     if cur.rowcount == 0:
         raise KeyError(app_id)
+    conn.commit()
+
+
+def get_preferences(conn: sqlite3.Connection) -> dict:
+    rows = conn.execute("SELECT key, value FROM preferences").fetchall()
+    prefs = {row["key"]: row["value"] for row in rows}
+    return {
+        "location": prefs.get("location", ""),
+        "min_relevance": int(prefs.get("min_relevance", "0") or 0),
+    }
+
+
+def save_preferences(conn: sqlite3.Connection, *, location: str, min_relevance: int = 0) -> dict:
+    values = {
+        "location": location.strip(),
+        "min_relevance": str(max(0, min(100, int(min_relevance)))),
+    }
+    for key, value in values.items():
+        conn.execute(
+            "INSERT INTO preferences(key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
+    conn.commit()
+    return get_preferences(conn)
+
+
+def record_discovery(conn: sqlite3.Connection, job: dict) -> dict:
+    key = str(job.get("job_key") or "").strip()
+    if not key:
+        raise ValueError("job_key is required")
+    existing = conn.execute(
+        "SELECT hidden, saved_application_id, first_seen FROM discovery_items WHERE job_key=?",
+        (key,),
+    ).fetchone()
+    is_new = existing is None
+    if existing is None:
+        conn.execute(
+            "INSERT INTO discovery_items(job_key, title, company, url) VALUES (?, ?, ?, ?)",
+            (key, str(job.get("title", "")), str(job.get("company", "")), str(job.get("url", ""))),
+        )
+        hidden = 0
+        saved_application_id = None
+    else:
+        conn.execute(
+            "UPDATE discovery_items SET title=?, company=?, url=?, last_seen=CURRENT_TIMESTAMP WHERE job_key=?",
+            (str(job.get("title", "")), str(job.get("company", "")), str(job.get("url", "")), key),
+        )
+        hidden = int(existing["hidden"])
+        saved_application_id = existing["saved_application_id"]
+    conn.commit()
+    return {"is_new": is_new, "hidden": bool(hidden), "saved_application_id": saved_application_id}
+
+
+def hide_discovery(conn: sqlite3.Connection, job_key: str) -> None:
+    conn.execute(
+        "INSERT INTO discovery_items(job_key, hidden) VALUES (?, 1) "
+        "ON CONFLICT(job_key) DO UPDATE SET hidden=1, last_seen=CURRENT_TIMESTAMP",
+        (job_key,),
+    )
+    conn.commit()
+
+
+def mark_discovery_saved(conn: sqlite3.Connection, job_key: str, application_id: int) -> None:
+    conn.execute(
+        "INSERT INTO discovery_items(job_key, saved_application_id) VALUES (?, ?) "
+        "ON CONFLICT(job_key) DO UPDATE SET saved_application_id=excluded.saved_application_id, last_seen=CURRENT_TIMESTAMP",
+        (job_key, application_id),
+    )
     conn.commit()
