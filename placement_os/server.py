@@ -154,6 +154,10 @@ class Handler(BaseHTTPRequestHandler):
                 role = str(data.get("title", "")).strip()
                 if not job_key or not role:
                     return self._json({"error": "Incomplete job data"}, 400)
+                status = str(data.get("status", "Saved"))
+                if status not in {"Saved", "Applying"}:
+                    status = "Saved"
+                next_action = "Complete application" if status == "Applying" else "Review advert and decide whether to apply"
                 with db.connect(DB_PATH) as conn:
                     app_id = db.create_application(
                         conn,
@@ -163,8 +167,8 @@ class Handler(BaseHTTPRequestHandler):
                             role,
                             location=str(data.get("location", "")),
                             job_url=str(data.get("url", "")),
-                            status="Saved",
-                            next_action="Review advert and decide whether to apply",
+                            status=status,
+                            next_action=next_action,
                             notes="Found automatically via " + str(data.get("source", "job search")),
                         ),
                     )
