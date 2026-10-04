@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from . import db
+from . import analyser
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "static"
@@ -58,19 +59,55 @@ class Handler(BaseHTTPRequestHandler):
         with db.connect(DB_PATH) as conn:
             if path == "/api/home": return self._json(db.home_summary(conn))
             if path == "/api/applications": return self._json(db.list_applications(conn))
+            if path == "/api/profile": return self._json(db.list_evidence(conn))
             if path.startswith("/api/applications/") and path.rsplit("/", 1)[-1].isdigit():
                 item = db.get_application(conn, int(path.rsplit("/", 1)[-1]))
                 return self._json(item, 200 if item else 404)
         self._json({"error": "Not found"}, 404)
 
     def do_POST(self):
-        if urlparse(self.path).path != "/api/applications": return self._json({"error": "Not found"}, 404)
-        try:
-            with db.connect(DB_PATH) as conn:
-                app_id = db.create_application(conn, _application_from(self._body()))
-                return self._json(db.get_application(conn, app_id), 201)
-        except ValueError as exc:
-            self._json({"error": str(exc)}, 400)
+        path = urlparse(self.path).path
+        data = self._body()
+
+        if path == "/api/applications":
+            try:
+                with db.connect(DB_PATH) as conn:
+                    app_id = db.create_application(conn, _application_from(data))
+                    return self._json(db.get_application(conn, app_id), 201)
+            except ValueError as exc:
+                return self._json({"error": str(exc)}, 400)
+
+        if path == "/api/profile":
+            try:
+                with db.connect(DB_PATH) as conn:
+                    evidence_id = db.create_evidence(
+                        conn,
+                        type=str(data.get("type", "project")),
+                        title=str(data.get("title", "")),
+                        detail=str(data.get("detail", "")),
+                        keywords=str(data.get("keywords", "")),
+                    )
+                    row = conn.execute("SELECT * FROM profile_evidence WHERE id=?", (evidence_id,)).fetchone()
+                    return self._json(dict(row), 201)
+            except ValueError as exc:
+                return self._json({"error": str(exc)}, 400)
+
+        if path.startswith("/api/analyse/") and path.rsplit("/", 1)[-1].isdigit():
+            app_id = int(path.rsplit("/", 1)[-1])
+            advert = str(data.get("advert", "")).strip()
+            if len(advert) < 40:
+                return self._json({"error": "Paste more of the job advert before analysing it"}, 400)
+            try:
+                with db.connect(DB_PATH) as conn:
+                    if db.get_application(conn, app_id) is None:
+                        return self._json({"error": "Application not found"}, 404)
+                    result = analyser.analyse(advert, db.list_evidence(conn))
+                    db.save_job_analysis(conn, app_id, advert, analyser.dumps(result))
+                    return self._json(result)
+            except KeyError:
+                return self._json({"error": "Application not found"}, 404)
+
+        return self._json({"error": "Not found"}, 404)
 
     def do_PUT(self):
         path = urlparse(self.path).path
@@ -88,14 +125,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         path = urlparse(self.path).path
-        if not (path.startswith("/api/applications/") and path.rsplit("/", 1)[-1].isdigit()):
-            return self._json({"error": "Not found"}, 404)
         try:
             with db.connect(DB_PATH) as conn:
-                db.delete_application(conn, int(path.rsplit("/", 1)[-1]))
-            self._json({"deleted": True})
+                if path.startswith("/api/applications/") and path.rsplit("/", 1)[-1].isdigit():
+                    db.delete_application(conn, int(path.rsplit("/", 1)[-1]))
+                    return self._json({"deleted": True})
+                if path.startswith("/api/profile/") and path.rsplit("/", 1)[-1].isdigit():
+                    db.delete_evidence(conn, int(path.rsplit("/", 1)[-1]))
+                    return self._json({"deleted": True})
         except KeyError:
-            self._json({"error": "Not found"}, 404)
+            return self._json({"error": "Not found"}, 404)
+        return self._json({"error": "Not found"}, 404)
 
 
 def run(host="127.0.0.1", port=8766) -> None:
