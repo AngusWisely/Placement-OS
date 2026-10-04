@@ -8,8 +8,8 @@
 :root{--bg:#f6f7f5;--panel:#fff;--text:#1f2933;--muted:#6b7280;--line:#e5e7eb;--accent:#136f63;--soft:#e8f3f0;--danger:#a8453c;--warn:#b7791f;font-family:system-ui,-apple-system,sans-serif}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}.side{border-right:1px solid var(--line);padding:24px 16px}.brand{font-size:20px;font-weight:700;margin:0 0 28px 10px}.nav a{display:block;padding:10px 12px;border-radius:9px;text-decoration:none;color:inherit;margin-bottom:5px}.nav a.active,.nav a:hover{background:var(--soft)}
 main{padding:34px 5vw 70px;max-width:1100px;width:100%}h1{margin:0 0 6px;font-size:30px}h2{margin:26px 0 12px;font-size:18px}.sub{color:var(--muted);margin:0 0 26px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}.card h3{margin:0 0 4px}.meta,.mini{color:var(--muted);font-size:13px}.mini{font-size:12px}.status{font-size:12px;font-weight:700;color:var(--accent)}.btn{border:1px solid var(--line);background:var(--panel);padding:9px 14px;border-radius:9px;font-weight:600;cursor:pointer}.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.danger{color:var(--danger)}.toolbar{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 18px}.form{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form label{display:grid;gap:5px;font-size:13px;color:var(--muted)}input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:#111}.wide{grid-column:1/-1}textarea{min-height:100px}.advert{min-height:240px}.analysis{display:grid;gap:14px;margin-top:18px}.score{font-size:36px;font-weight:800;color:var(--accent);line-height:1}.analysis-list{display:grid;gap:10px}.analysis-item{border:1px solid var(--line);border-radius:10px;padding:12px}.analysis-item.match{border-left:4px solid var(--accent)}.analysis-item.gap{border-left:4px solid var(--warn)}.analysis-item h4{margin:0 0 4px}.evidence{margin-top:8px;color:var(--muted);font-size:13px}.empty{color:var(--muted);font-size:14px}
-.job-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}.job-card h3{margin:0 0 4px}.job-top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.match-pill{font-size:12px;font-weight:800;color:var(--accent);background:var(--soft);padding:4px 8px;border-radius:999px;white-space:nowrap}.source{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.setup{border-left:4px solid var(--warn)}.job-list{display:grid;gap:12px}.salary{font-size:12px;color:var(--muted);margin-top:4px}
-@media(max-width:760px){.app{display:block}.side{border-right:0;border-bottom:1px solid var(--line)}.nav{display:flex;gap:6px;overflow:auto}.nav a{white-space:nowrap}.grid,.form{grid-template-columns:1fr}main{padding:22px 16px}}
+.job-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}.job-card h3{margin:0 0 4px}.job-top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.match-pill{font-size:12px;font-weight:800;color:var(--accent);background:var(--soft);padding:4px 8px;border-radius:999px;white-space:nowrap}.source{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.setup{border-left:4px solid var(--warn)}.job-list{display:grid;gap:12px}.salary{font-size:12px;color:var(--muted);margin-top:4px}.new-pill{font-size:11px;font-weight:800;color:var(--accent);background:var(--soft);padding:3px 7px;border-radius:999px;margin-left:6px}.muted-btn{color:var(--muted)}.import-row{display:grid;grid-template-columns:1fr auto;gap:10px}.today-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}.metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}.metric strong{display:block;font-size:24px}.metric span{font-size:12px;color:var(--muted)}
+@media(max-width:760px){.today-hero{grid-template-columns:1fr}.import-row{grid-template-columns:1fr}.app{display:block}.side{border-right:0;border-bottom:1px solid var(--line)}.nav{display:flex;gap:6px;overflow:auto}.nav a{white-space:nowrap}.grid,.form{grid-template-columns:1fr}main{padding:22px 16px}}
 </style>
 </head>
 <body>
@@ -17,7 +17,7 @@ main{padding:34px 5vw 70px;max-width:1100px;width:100%}h1{margin:0 0 6px;font-si
 <aside class="side">
 <p class="brand">Placement OS</p>
 <nav class="nav">
-<a href="#/" data-page="home">Home</a>
+<a href="#/" data-page="home">Today</a>
 <a href="#/find" data-page="find">Find roles</a>
 <a href="#/applications" data-page="applications">Applications</a>
 <a href="#/companies" data-page="companies">Companies</a>
@@ -82,23 +82,82 @@ function appCard(app) {
 async function home() {
   nav("home");
   const data = await api("/api/home");
-  show(
-    h("h1", {}, "Placement OS"),
-    h("p", {class:"sub"}, "What needs your attention next."),
-    h("h2", {}, "Next actions"),
-    data.actions.length ? h("div", {class:"grid"}, data.actions.map(appCard)) : h("p", {class:"empty"}, "No next actions yet."),
-    h("h2", {}, "Upcoming deadlines"),
-    data.deadlines.length ? h("div", {class:"grid"}, data.deadlines.map(appCard)) : h("p", {class:"empty"}, "No deadlines saved yet.")
+  const discoveryStatus = await api("/api/discovery/status");
+  let newRoles = 0;
+
+  const newRolesBox = h("div", {class:"metric"},
+    h("strong", {}, "—"),
+    h("span", {}, discoveryStatus.configured ? "new roles this session" : "job search not connected")
   );
+
+  show(
+    h("h1", {}, "Today"),
+    h("p", {class:"sub"}, "The few things worth your attention right now."),
+    h("div", {class:"today-hero"},
+      newRolesBox,
+      h("div", {class:"metric"}, h("strong", {}, data.actions.length), h("span", {}, "applications needing action")),
+      h("div", {class:"metric"}, h("strong", {}, data.deadlines.length), h("span", {}, "upcoming deadlines"))
+    ),
+    h("div", {class:"toolbar"},
+      h("a", {class:"btn primary", href:"#/find"}, "Find placements"),
+      h("a", {class:"btn", href:"#/applications"}, "Applications")
+    ),
+    h("h2", {}, "Next actions"),
+    data.actions.length ? h("div", {class:"grid"}, data.actions.map(appCard)) : h("p", {class:"empty"}, "Nothing waiting for you."),
+    h("h2", {}, "Upcoming deadlines"),
+    data.deadlines.length ? h("div", {class:"grid"}, data.deadlines.map(appCard)) : h("p", {class:"empty"}, "No upcoming deadlines saved.")
+  );
+
+  if (discoveryStatus.configured && !sessionStorage.getItem("placement-os-auto-search")) {
+    sessionStorage.setItem("placement-os-auto-search", "1");
+    try {
+      const found = await api("/api/discover", {method:"POST", body:"{}"});
+      newRoles = found.new_count || 0;
+      newRolesBox.replaceChildren(
+        h("strong", {}, newRoles),
+        h("span", {}, newRoles === 1 ? "new placement found" : "new placements found")
+      );
+    } catch (_) {
+      newRolesBox.replaceChildren(h("strong", {}, "—"), h("span", {}, "job search unavailable"));
+    }
+  } else if (discoveryStatus.configured) {
+    newRolesBox.replaceChildren(h("strong", {}, "✓"), h("span", {}, "placements checked this session"));
+  }
 }
 
 async function applications() {
   nav("applications");
   const apps = await api("/api/applications");
+
+  const urlInput = h("input", {type:"url", placeholder:"Paste a job advert URL…"});
+  const importButton = h("button", {class:"btn"}, "Import URL");
+  importButton.addEventListener("click", async () => {
+    if (!urlInput.value.trim()) return;
+    importButton.disabled = true;
+    importButton.textContent = "Importing…";
+    try {
+      const app = await api("/api/import-url", {
+        method:"POST",
+        body:JSON.stringify({url:urlInput.value})
+      });
+      editForm(app);
+    } catch (error) {
+      alert(error.message);
+      importButton.disabled = false;
+      importButton.textContent = "Import URL";
+    }
+  });
+
   show(
-    h("div", {class:"toolbar"}, h("button", {class:"btn primary", onclick:() => editForm(null)}, "Add application")),
     h("h1", {}, "Applications"),
     h("p", {class:"sub"}, apps.length + " tracked"),
+    h("div", {class:"panel"},
+      h("div", {class:"import-row"}, urlInput, importButton),
+      h("p", {class:"mini"}, "Paste a public job URL and Placement OS will try to create the application and analyse the advert for you.")
+    ),
+    h("div", {class:"toolbar"},
+      h("button", {class:"btn primary", onclick:() => editForm(null)}, "Add manually")
+    ),
     apps.length ? h("div", {class:"grid"}, apps.map(appCard)) : h("p", {class:"empty"}, "No applications yet.")
   );
 }
@@ -319,43 +378,52 @@ function jobCard(job) {
     ? [money(job.salary_min), money(job.salary_max)].filter(Boolean).join("–")
     : "";
 
-  const save = h("button", {class:"btn primary"}, "Save to Applications");
-  save.addEventListener("click", async () => {
-    save.disabled = true;
-    save.textContent = "Saving…";
+  const card = h("div", {class:"job-card"});
+  const save = h("button", {class:"btn primary"}, job.saved_application_id ? "Saved" : "Save");
+  const apply = h("button", {class:"btn"}, job.saved_application_id ? "Open advert" : "Apply");
+  const hide = h("button", {class:"btn muted-btn"}, "Hide");
+
+  if (job.saved_application_id) save.disabled = true;
+
+  async function saveJob(status) {
+    if (job.saved_application_id) {
+      window.open(job.url, "_blank", "noopener");
+      return;
+    }
+    const button = status === "Applying" ? apply : save;
+    button.disabled = true;
+    button.textContent = status === "Applying" ? "Saving…" : "Saving…";
     try {
-      const app = await api("/api/applications", {
+      const app = await api("/api/discovery/save", {
         method:"POST",
-        body:JSON.stringify({
-          company: job.company || "Unknown employer",
-          role: job.title,
-          location: job.location || "",
-          job_url: job.url,
-          status: "Saved",
-          next_action: "Review job advert and decide whether to apply",
-          notes: "Found automatically via " + job.source
-        })
+        body:JSON.stringify({...job, status})
       });
-      if (job.description) {
-        try {
-          await api("/api/analyse/" + app.id, {
-            method:"POST",
-            body:JSON.stringify({advert: job.description})
-          });
-        } catch (_) {}
-      }
+      job.saved_application_id = app.id;
       save.textContent = "Saved";
+      save.disabled = true;
+      if (status === "Applying") {
+        apply.textContent = "Opening…";
+        window.open(job.url, "_blank", "noopener");
+        setTimeout(() => { apply.textContent = "Open advert"; apply.disabled = false; }, 300);
+      }
     } catch (error) {
       alert(error.message);
-      save.disabled = false;
-      save.textContent = "Try again";
+      button.disabled = false;
+      button.textContent = status === "Applying" ? "Apply" : "Save";
     }
+  }
+
+  save.addEventListener("click", () => saveJob("Saved"));
+  apply.addEventListener("click", () => saveJob("Applying"));
+  hide.addEventListener("click", async () => {
+    await api("/api/discovery/hide", {method:"POST", body:JSON.stringify({job_key:job.job_key})});
+    card.remove();
   });
 
-  return h("div", {class:"job-card"},
+  card.append(
     h("div", {class:"job-top"},
       h("div", {},
-        h("div", {class:"source"}, job.source),
+        h("div", {class:"source"}, job.source, job.is_new ? h("span", {class:"new-pill"}, "NEW") : null),
         h("h3", {}, job.title),
         h("div", {class:"meta"}, (job.company || "Unknown employer") + (job.location ? " · " + job.location : "")),
         salary ? h("div", {class:"salary"}, salary) : null
@@ -364,17 +432,22 @@ function jobCard(job) {
     ),
     h("p", {class:"meta"}, job.analysis?.summary || ""),
     h("div", {class:"toolbar"},
-      h("a", {class:"btn", href:job.url, target:"_blank", rel:"noopener"}, "Open advert"),
-      save
+      h("a", {class:"btn", href:job.url, target:"_blank", rel:"noopener"}, "View"),
+      save,
+      apply,
+      hide
     )
   );
+  return card;
 }
 
 async function findRoles() {
   nav("find");
   let status = await api("/api/discovery/status");
+  let prefs = await api("/api/preferences");
   const resultsBox = h("div", {});
-  const location = h("input", {type:"text", value:"", placeholder:"Optional: Manchester, London, Nottingham…"});
+  const locationInput = h("input", {type:"text", value:prefs.location || "", placeholder:"Manchester, Nottingham, London…"});
+  const relevanceInput = h("input", {type:"number", min:"0", max:"100", value:String(prefs.min_relevance || 0)});
 
   const searchButton = h("button", {class:"btn primary"}, "Search placements");
   searchButton.addEventListener("click", async () => {
@@ -382,16 +455,23 @@ async function findRoles() {
     searchButton.textContent = "Searching…";
     resultsBox.replaceChildren(h("p", {class:"sub"}, "Checking current placement adverts…"));
     try {
+      prefs = await api("/api/preferences", {
+        method:"POST",
+        body:JSON.stringify({
+          location:locationInput.value,
+          min_relevance:Number(relevanceInput.value || 0)
+        })
+      });
       const data = await api("/api/discover", {
         method:"POST",
-        body:JSON.stringify({location: location.value})
+        body:JSON.stringify({location:prefs.location})
       });
       resultsBox.replaceChildren(
         h("h2", {}, "Matches"),
-        h("p", {class:"sub"}, data.count + " adverts found, best matches first."),
+        h("p", {class:"sub"}, data.new_count + " new · " + data.count + " visible"),
         data.results.length
           ? h("div", {class:"job-list"}, data.results.map(jobCard))
-          : h("p", {class:"empty"}, "No matching adverts were returned. Try another location.")
+          : h("p", {class:"empty"}, "No visible matches. Try a broader location or lower minimum relevance.")
       );
     } catch (error) {
       resultsBox.replaceChildren(h("div", {class:"panel setup"},
@@ -408,46 +488,44 @@ async function findRoles() {
   if (!status.configured) {
     const appId = h("input", {type:"text", placeholder:"Adzuna App ID"});
     const appKey = h("input", {type:"password", placeholder:"Adzuna App Key"});
-    const save = h("button", {class:"btn primary"}, "Save job-search setup");
-
-    save.addEventListener("click", async () => {
-      save.disabled = true;
+    const connect = h("button", {class:"btn primary"}, "Connect job search");
+    connect.addEventListener("click", async () => {
+      connect.disabled = true;
       try {
         status = await api("/api/discovery/config", {
           method:"POST",
-          body:JSON.stringify({app_id: appId.value, app_key: appKey.value})
+          body:JSON.stringify({app_id:appId.value, app_key:appKey.value})
         });
         setup.replaceChildren(
           h("h3", {}, "Job search connected"),
-          h("p", {class:"meta"}, "Credentials are stored only in the local data folder on this Mac.")
+          h("p", {class:"meta"}, "Saved locally on this Mac. You can search now.")
         );
       } catch (error) {
         alert(error.message);
       } finally {
-        save.disabled = false;
+        connect.disabled = false;
       }
     });
-
     setup = h("div", {class:"panel setup"},
       h("h3", {}, "One-time setup"),
-      h("p", {class:"meta"}, "Placement OS uses Adzuna's official UK jobs API. Create free API credentials, then enter them here. They are saved locally and are ignored by Git."),
+      h("p", {class:"meta"}, "Enter your Adzuna App ID and App Key. They stay in the ignored local data folder."),
       h("div", {class:"form"},
         h("label", {}, "App ID", appId),
         h("label", {}, "App Key", appKey)
       ),
-      h("div", {class:"toolbar"}, save)
+      h("div", {class:"toolbar"}, connect)
     );
   }
 
   show(
     h("h1", {}, "Find roles"),
-    h("p", {class:"sub"}, "Search current UK placement adverts and rank them against your Profile evidence."),
+    h("p", {class:"sub"}, "New placements first, ranked against your evidence. Hidden roles stay hidden."),
     setup,
-    h("div", {class:"panel"},
-      h("label", {class:"meta"}, "Location"),
-      location,
-      h("div", {class:"toolbar"}, searchButton),
-      h("p", {class:"mini"}, "Searches building services, energy, sustainability, environmental engineering, digital engineering and building performance placements.")
+    h("div", {class:"panel form"},
+      h("label", {}, "Preferred location", locationInput),
+      h("label", {}, "Minimum relevance %", relevanceInput),
+      h("div", {class:"wide toolbar"}, searchButton),
+      h("p", {class:"wide mini"}, "Your search settings are remembered automatically.")
     ),
     resultsBox
   );
