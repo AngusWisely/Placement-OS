@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 from . import db
 from . import analyser
+from . import jobs
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "static"
@@ -60,6 +61,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/home": return self._json(db.home_summary(conn))
             if path == "/api/applications": return self._json(db.list_applications(conn))
             if path == "/api/profile": return self._json(db.list_evidence(conn))
+            if path == "/api/discovery/status": return self._json(jobs.status())
             if path.startswith("/api/applications/") and path.rsplit("/", 1)[-1].isdigit():
                 item = db.get_application(conn, int(path.rsplit("/", 1)[-1]))
                 return self._json(item, 200 if item else 404)
@@ -90,6 +92,22 @@ class Handler(BaseHTTPRequestHandler):
                     row = conn.execute("SELECT * FROM profile_evidence WHERE id=?", (evidence_id,)).fetchone()
                     return self._json(dict(row), 201)
             except ValueError as exc:
+                return self._json({"error": str(exc)}, 400)
+
+        if path == "/api/discovery/config":
+            try:
+                jobs.save_credentials(str(data.get("app_id", "")), str(data.get("app_key", "")))
+                return self._json(jobs.status())
+            except ValueError as exc:
+                return self._json({"error": str(exc)}, 400)
+
+        if path == "/api/discover":
+            try:
+                location = str(data.get("location", "")).strip()
+                with db.connect(DB_PATH) as conn:
+                    results = jobs.search(db.list_evidence(conn), location=location)
+                return self._json({"results": results, "count": len(results)})
+            except jobs.DiscoveryError as exc:
                 return self._json({"error": str(exc)}, 400)
 
         if path.startswith("/api/analyse/") and path.rsplit("/", 1)[-1].isdigit():
