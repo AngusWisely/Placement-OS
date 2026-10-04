@@ -372,7 +372,7 @@ function jobCard(job) {
 
 async function findRoles() {
   nav("find");
-  const status = await api("/api/discovery/status");
+  let status = await api("/api/discovery/status");
   const resultsBox = h("div", {});
   const location = h("input", {type:"text", value:"", placeholder:"Optional: Manchester, London, Nottingham…"});
 
@@ -395,9 +395,8 @@ async function findRoles() {
       );
     } catch (error) {
       resultsBox.replaceChildren(h("div", {class:"panel setup"},
-        h("h3", {}, "Job search is not configured yet"),
-        h("p", {class:"meta"}, error.message),
-        h("p", {class:"meta"}, "Add your Adzuna APP ID and APP KEY as local environment variables, then restart Placement OS.")
+        h("h3", {}, "Search failed"),
+        h("p", {class:"meta"}, error.message)
       ));
     } finally {
       searchButton.disabled = false;
@@ -405,10 +404,40 @@ async function findRoles() {
     }
   });
 
-  const setup = status.configured ? null : h("div", {class:"panel setup"},
-    h("h3", {}, "One-time setup needed"),
-    h("p", {class:"meta"}, "Placement OS uses Adzuna's official UK jobs API. Add your free API credentials locally on this Mac, then restart the app.")
-  );
+  let setup = null;
+  if (!status.configured) {
+    const appId = h("input", {type:"text", placeholder:"Adzuna App ID"});
+    const appKey = h("input", {type:"password", placeholder:"Adzuna App Key"});
+    const save = h("button", {class:"btn primary"}, "Save job-search setup");
+
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      try {
+        status = await api("/api/discovery/config", {
+          method:"POST",
+          body:JSON.stringify({app_id: appId.value, app_key: appKey.value})
+        });
+        setup.replaceChildren(
+          h("h3", {}, "Job search connected"),
+          h("p", {class:"meta"}, "Credentials are stored only in the local data folder on this Mac.")
+        );
+      } catch (error) {
+        alert(error.message);
+      } finally {
+        save.disabled = false;
+      }
+    });
+
+    setup = h("div", {class:"panel setup"},
+      h("h3", {}, "One-time setup"),
+      h("p", {class:"meta"}, "Placement OS uses Adzuna's official UK jobs API. Create free API credentials, then enter them here. They are saved locally and are ignored by Git."),
+      h("div", {class:"form"},
+        h("label", {}, "App ID", appId),
+        h("label", {}, "App Key", appKey)
+      ),
+      h("div", {class:"toolbar"}, save)
+    );
+  }
 
   show(
     h("h1", {}, "Find roles"),
