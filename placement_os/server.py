@@ -94,6 +94,13 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 return self._json({"error": str(exc)}, 400)
 
+        if path == "/api/discovery/config":
+            try:
+                jobs.save_credentials(str(data.get("app_id", "")), str(data.get("app_key", "")))
+                return self._json(jobs.status())
+            except ValueError as exc:
+                return self._json({"error": str(exc)}, 400)
+
         if path == "/api/discover":
             try:
                 location = str(data.get("location", "")).strip()
