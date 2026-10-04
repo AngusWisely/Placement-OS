@@ -52,3 +52,16 @@ show strong matches, gaps and suggested evidence
 python3 -m pip install -r requirements-dev.txt
 python3 -m pytest
 ```
+
+
+## V0.2 job analysis
+
+V0.2 adds an explainable local matcher:
+
+1. Add concrete projects, skills and experience under **Profile**.
+2. Open an application and choose **Analyse advert**.
+3. Paste the full job advert.
+4. Placement OS identifies recognised requirement themes.
+5. It links each requirement to profile evidence, or shows it as a gap.
+
+The match is deliberately deterministic rather than an opaque AI score. No job advert or profile evidence is sent to an external API.
