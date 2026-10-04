@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from . import analyser
 
 API_ROOT = "https://api.adzuna.com/v1/api/jobs/gb/search/1"
+CONFIG_PATH = Path(__file__).resolve().parents[1] / "data" / "adzuna.json"
 
 DEFAULT_QUERIES = (
     "building services placement",
@@ -36,8 +37,33 @@ class DiscoveryError(RuntimeError):
     pass
 
 
+def credentials() -> tuple[str, str]:
+    env_id = os.environ.get("ADZUNA_APP_ID", "").strip()
+    env_key = os.environ.get("ADZUNA_APP_KEY", "").strip()
+    if env_id and env_key:
+        return env_id, env_key
+    try:
+        data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        return str(data.get("app_id", "")).strip(), str(data.get("app_key", "")).strip()
+    except (OSError, ValueError, TypeError):
+        return "", ""
+
+
 def configured() -> bool:
-    return bool(os.environ.get("ADZUNA_APP_ID") and os.environ.get("ADZUNA_APP_KEY"))
+    app_id, app_key = credentials()
+    return bool(app_id and app_key)
+
+
+def save_credentials(app_id: str, app_key: str) -> None:
+    app_id, app_key = app_id.strip(), app_key.strip()
+    if not app_id or not app_key:
+        raise ValueError("Both Adzuna App ID and App Key are required")
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps({"app_id": app_id, "app_key": app_key}), encoding="utf-8")
+    try:
+        CONFIG_PATH.chmod(0o600)
+    except OSError:
+        pass
 
 
 def _fetch_json(url: str, *, opener=urlopen) -> dict:
@@ -70,8 +96,7 @@ def search(
     per_query: int = 10,
     opener=urlopen,
 ) -> list[dict]:
-    app_id = os.environ.get("ADZUNA_APP_ID", "").strip()
-    app_key = os.environ.get("ADZUNA_APP_KEY", "").strip()
+    app_id, app_key = credentials()
     if not app_id or not app_key:
         raise DiscoveryError("Adzuna is not configured")
 
