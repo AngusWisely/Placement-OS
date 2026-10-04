@@ -65,3 +65,31 @@ V0.2 adds an explainable local matcher:
 5. It links each requirement to profile evidence, or shows it as a gap.
 
 The match is deliberately deterministic rather than an opaque AI score. No job advert or profile evidence is sent to an external API.
+
+
+## V0.3 job discovery
+
+V0.3 adds a **Find roles** screen backed by Adzuna's official UK jobs API.
+
+The app searches these placement themes by default:
+
+- building services
+- energy
+- sustainability
+- environmental engineering
+- digital engineering
+- building performance
+
+Results are deduplicated, analysed against the Profile evidence already stored in Placement OS, and ranked by relevance. A discovered role can be opened in the browser or saved directly into Applications.
+
+### One-time setup
+
+Open **Find roles** in Placement OS and enter an Adzuna App ID and App Key. The credentials are stored only in:
+
+```text
+data/adzuna.json
+```
+
+The whole `data/` directory is ignored by Git.
+
+You can alternatively set `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` as environment variables.
