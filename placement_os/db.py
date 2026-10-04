@@ -56,13 +56,30 @@ def migrate(conn: sqlite3.Connection) -> None:
             contact_name TEXT NOT NULL DEFAULT '',
             contact_linkedin TEXT NOT NULL DEFAULT '',
             notes TEXT NOT NULL DEFAULT '',
+            job_advert TEXT NOT NULL DEFAULT '',
+            analysis_json TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         CREATE INDEX IF NOT EXISTS idx_applications_deadline ON applications(deadline);
         CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+
+        CREATE TABLE IF NOT EXISTS profile_evidence (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL DEFAULT 'project',
+            title TEXT NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            keywords TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
         """
     )
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(applications)")}
+    if "job_advert" not in columns:
+        conn.execute("ALTER TABLE applications ADD COLUMN job_advert TEXT NOT NULL DEFAULT ''")
+    if "analysis_json" not in columns:
+        conn.execute("ALTER TABLE applications ADD COLUMN analysis_json TEXT NOT NULL DEFAULT ''")
     conn.commit()
 
 
@@ -134,3 +151,37 @@ def home_summary(conn: sqlite3.Connection) -> dict:
     for app in apps:
         counts[app["status"]] += 1
     return {"applications": apps, "deadlines": due, "actions": actions, "counts": counts}
+
+
+def list_evidence(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute("SELECT * FROM profile_evidence ORDER BY type, title").fetchall()
+    return [dict(r) for r in rows]
+
+
+def create_evidence(conn: sqlite3.Connection, *, type: str, title: str, detail: str = "", keywords: str = "") -> int:
+    title = title.strip()
+    if not title:
+        raise ValueError("Evidence title is required")
+    cur = conn.execute(
+        "INSERT INTO profile_evidence(type, title, detail, keywords) VALUES (?, ?, ?, ?)",
+        (type.strip() or "project", title, detail.strip(), keywords.strip()),
+    )
+    conn.commit()
+    return int(cur.lastrowid)
+
+
+def delete_evidence(conn: sqlite3.Connection, evidence_id: int) -> None:
+    cur = conn.execute("DELETE FROM profile_evidence WHERE id=?", (evidence_id,))
+    if cur.rowcount == 0:
+        raise KeyError(evidence_id)
+    conn.commit()
+
+
+def save_job_analysis(conn: sqlite3.Connection, app_id: int, advert: str, analysis_json: str) -> None:
+    cur = conn.execute(
+        "UPDATE applications SET job_advert=?, analysis_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        (advert.strip(), analysis_json, app_id),
+    )
+    if cur.rowcount == 0:
+        raise KeyError(app_id)
+    conn.commit()
