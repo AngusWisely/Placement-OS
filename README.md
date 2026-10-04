@@ -93,3 +93,42 @@ data/adzuna.json
 The whole `data/` directory is ignored by Git.
 
 You can alternatively set `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` as environment variables.
+
+
+## V0.4 usability
+
+V0.4 reduces the number of manual steps needed to use Placement OS day to day.
+
+### Today
+The home screen is now **Today**. It shows application actions, deadlines and whether new placements were found. If job discovery is configured, Placement OS performs one discovery check per browser session.
+
+### Remembered job search
+**Find roles** remembers the preferred location and minimum relevance score.
+
+### New / hidden / saved roles
+Placement OS remembers discovery results between searches:
+- new jobs receive a **NEW** badge
+- hidden jobs stay hidden
+- saved jobs are marked as saved
+
+### One-click Save and Apply
+A result can be saved directly to Applications. **Apply** saves it with status `Applying` and opens the original advert.
+
+### Paste a URL
+The Applications screen can import many normal public job pages from a URL. JavaScript-only careers sites may not expose enough HTML; those can still be saved manually or pasted into Analyse advert.
+
+### Mac Dock launcher
+
+Run once:
+
+```bash
+python3 scripts/make_app.py
+```
+
+This creates:
+
+```text
+~/Applications/Placement OS.app
+```
+
+Open Finder → Applications and drag **Placement OS** to the Dock. Clicking it starts the local server if necessary and opens the app in the default browser.
