@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -136,7 +137,9 @@ def search(
             if isinstance(employer, dict):
                 company = str(employer.get("display_name") or "")
 
+            job_key = hashlib.sha256(key.encode("utf-8")).hexdigest()[:24]
             record = {
+                "job_key": job_key,
                 "source": "Adzuna",
                 "source_id": str(item.get("id") or ""),
                 "title": title,
